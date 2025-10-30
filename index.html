@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulateur de Crédit Immobilier</title>*
+  <BR>créé par Dadam Ferhat BERKANI<BR>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f6f8;
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+    }
+    .container {
+      max-width: 900px;
+      margin: 20px auto;
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px 30px;
+    }
+    label {
+      font-weight: bold;
+      color: #34495e;
+    }
+    input, select {
+      width: 100%;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+    .buttons {
+      text-align: center;
+      margin-top: 20px;
+    }
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      margin: 5px;
+      cursor: pointer;
+    }
+    button#simulate {
+      background-color: #27ae60;
+      color: white;
+    }
+    button#reset {
+      background-color: #e74c3c;
+      color: white;
+    }
+    .results {
+      margin-top: 25px;
+      padding: 15px;
+      border-radius: 10px;
+      background-color: #ecf0f1;
+    }
+    .results h3 {
+      color: #2c3e50;
+      border-bottom: 2px solid #3498db;
+      padding-bottom: 5px;
+    }
+    .result-item {
+      margin: 10px 0;
+      font-size: 16px;
+    }
+    .highlight {
+      background: #dff9fb;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 20px;
+      font-weight: bold;
+      color: #2c3e50;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Simulateur de Crédit Immobilier</h1>
+  <div class="container">
+
+    <div class="form-grid">
+      <div>
+        <label for="annees">Nombre d'années :</label>
+        <select id="annees">
+          <script>
+            for (let i = 5; i <= 30; i++) {
+              document.write(`<option value="${i}" ${i === 25 ? 'selected' : ''}>${i} ans</option>`);
+            }
+          </script>
+        </select>
+      </div>
+
+      <div>
+        <label for="mensualite">Mensualité maximale (€) :</label>
+        <input type="number" id="mensualite" value="1900">
+      </div>
+
+      <div>
+        <label for="apport">Apport (€) :</label>
+        <input type="number" id="apport" value="70000">
+      </div>
+
+      <div>
+        <label for="taux">Taux d'intérêt (%) :</label>
+        <input type="number" step="0.01" id="taux" value="3.4">
+      </div>
+
+      <div>
+        <label for="fraisDossier">Frais de dossier (€) :</label>
+        <input type="number" id="fraisDossier" value="2000">
+      </div>
+
+      <div>
+        <label for="garantie">Garantie (€) :</label>
+        <input type="number" id="garantie" value="3000">
+      </div>
+
+      <div>
+        <label for="assurance">Assurance mensuelle (€) :</label>
+        <input type="number" id="assurance" value="70">
+      </div>
+
+      <div>
+        <label for="tauxNotaire">Taux frais de notaire (%) :</label>
+        <input type="number" step="0.01" id="tauxNotaire" value="7.15">
+      </div>
+    </div>
+
+    <div class="buttons">
+      <button id="simulate">Lancer la simulation</button>
+      <button id="reset">Réinitialiser</button>
+    </div>
+
+    <div class="results" id="results" style="display:none;">
+      <h3>Résultats de la simulation</h3>
+      <div class="result-item" id="emprunt"></div>
+      <div class="result-item" id="interets"></div>
+      <div class="result-item" id="avoir"></div>
+      <div class="result-item" id="fraisNotaire"></div>
+      <div class="highlight" id="prixBien"></div>
+    </div>
+
+  </div>
+
+  <script>
+    const simulateBtn = document.getElementById('simulate');
+    const resetBtn = document.getElementById('reset');
+
+      // ✅ Fonction pour formater les nombres arrondis avec espace comme séparateur de milliers
+    function formatNombre(n) {
+        return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    }
+
+    simulateBtn.addEventListener('click', () => {
+      const years = parseFloat(document.getElementById('annees').value);
+      const mensualite = parseFloat(document.getElementById('mensualite').value);
+      const apportPerso = parseFloat(document.getElementById('apport').value);
+      const tauxEmprunt = parseFloat(document.getElementById('taux').value);
+      const dossierBanque = parseFloat(document.getElementById('fraisDossier').value);
+      const garantieBanque = parseFloat(document.getElementById('garantie').value);
+      const assuranceMensu = parseFloat(document.getElementById('assurance').value);
+      const tauxDossNotaire = parseFloat(document.getElementById('tauxNotaire').value);
+
+      // Calculs indépendants
+      const tauxMensuel = tauxEmprunt / 1200;
+      const nbMois = years * 12;
+
+      const montantEmprunt = mensualite * (1 - Math.pow(1 + tauxMensuel, -nbMois)) / tauxMensuel;
+      const montantInterets = (mensualite * nbMois) - montantEmprunt;
+      const avoirFinal = montantEmprunt + (apportPerso - (dossierBanque + garantieBanque + (assuranceMensu * nbMois)));
+      const prixBien = avoirFinal / (1 + (tauxDossNotaire/100));
+      const fraisNotaire = prixBien * (tauxDossNotaire / 100);
+
+      // Affichage
+      document.getElementById('results').style.display = 'block';
+      document.getElementById('emprunt').innerHTML = `💰 Montant à emprunter : <strong>${formatNombre(montantEmprunt)} €</strong>`;
+      document.getElementById('interets').innerHTML = `📉 Montant total des intérêts : <strong>${formatNombre(montantInterets)} €</strong>`;
+      document.getElementById('avoir').innerHTML = `📊 Avoir final : <strong>${formatNombre(avoirFinal)} €</strong>`;
+      document.getElementById('fraisNotaire').innerHTML = `🏛️ Frais de notaire : <strong>${formatNombre(fraisNotaire)} €</strong>`;
+      document.getElementById('prixBien').innerHTML = `🏠 Prix du bien estimé : ${formatNombre(prixBien)} €`;
+    });
+
+    resetBtn.addEventListener('click', () => {
+      document.querySelector('form')?.reset(); // si jamais un form est ajouté plus tard
+      document.getElementById('annees').value = 25;
+      document.getElementById('mensualite').value = 1900;
+      document.getElementById('apport').value = 70000;
+      document.getElementById('taux').value = 3.4;
+      document.getElementById('fraisDossier').value = 2000;
+      document.getElementById('garantie').value = 3000;
+      document.getElementById('assurance').value = 70;
+      document.getElementById('tauxNotaire').value = 7.15;
+      document.getElementById('results').style.display = 'none';
+    });
+  </script>
+</body>
+</html>
