@@ -166,6 +166,43 @@ button.calculer:hover {
     display: none;
 }
 
+.collapsible {
+    border: 1px solid #e0e6ec;
+    border-radius: 10px;
+    padding: 12px 15px;
+    margin-bottom: 15px;
+    background: #fafbfc;
+}
+
+.collapsible summary {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 15px;
+    list-style: none;
+    color: var(--text);
+}
+
+.collapsible summary::-webkit-details-marker {
+    display: none;
+}
+
+.collapsible summary::before {
+    content: "▸ ";
+    color: var(--primary);
+}
+
+.collapsible[open] summary::before {
+    content: "▾ ";
+}
+
+.collapsible[open] summary {
+    margin-bottom: 12px;
+}
+
+.collapsible .form-grid {
+    margin-top: 0;
+}
+
 .print-btn.visible {
     display: block;
 }
@@ -249,6 +286,21 @@ button.calculer:hover {
         margin-top: 8px;
         padding: 10px;
         font-size: 18px;
+    }
+
+    .collapsible {
+        border: none;
+        padding: 0;
+        background: transparent;
+        margin-bottom: 6px;
+    }
+
+    .collapsible summary::before {
+        content: "";
+    }
+
+    .collapsible summary {
+        font-size: 13px;
     }
 }
 </style>
@@ -368,12 +420,36 @@ button.calculer:hover {
             </div>
         </div>
 
+        <details class="collapsible" id="ptzDetails">
+            <summary>🏦 Prêt à taux zéro (PTZ)</summary>
+            <div class="form-grid">
+                <div>
+                    <label>Montant du PTZ (€)</label>
+                    <input type="number" id="ptzMontant" value="25000">
+                </div>
+            </div>
+        </details>
+
+        <details class="collapsible" id="specialDetails">
+            <summary>💠 Prêt à taux spécial</summary>
+            <div class="form-grid">
+                <div>
+                    <label>Montant à taux spécial (€)</label>
+                    <input type="number" id="specialMontant" value="30000">
+                </div>
+                <div>
+                    <label>Taux spécial (%)</label>
+                    <input type="number" step="0.01" id="specialTaux" value="1.99">
+                </div>
+            </div>
+        </details>
+
         <div class="section">
             <h3>💰 Frais annexes</h3>
             <div class="form-grid">
                 <div>
                     <label>Taux de notaire (%)</label>
-                    <input type="number" step="0.2" id="tauxNotaire2" value="7.2">
+                    <input type="number" step="0.2" id="tauxNotaire2" value="7.5">
                 </div>
                 <div>
                     <label>Frais de dossier (€)</label>
@@ -391,6 +467,7 @@ button.calculer:hover {
         <div class="results" id="resultats2">
             <div class="result-item" id="notaire2"></div>
             <div class="result-item" id="capitalEmprunte"></div>
+            <div class="result-item" id="repartitionPrets"></div>
             <div class="result-item" id="interets2"></div>
             <div class="result-item" id="mensualiteSansAssurance"></div>
             <div class="highlight" id="mensualiteTotale"></div>
@@ -405,6 +482,12 @@ button.calculer:hover {
 <script>
 function format(n) {
     return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+}
+
+function mensualiteAnnuite(capital, tauxMensuel, n) {
+    if (capital <= 0) return 0;
+    if (tauxMensuel === 0) return capital / n;
+    return capital * tauxMensuel / (1 - Math.pow(1 + tauxMensuel, -n));
 }
 
 function switchTab(n) {
@@ -459,22 +542,41 @@ function calculerMensualite() {
     const tauxNotaire = parseFloat(document.getElementById("tauxNotaire2").value) / 100;
     const dossier = parseFloat(document.getElementById("dossier2").value);
     const garantie = parseFloat(document.getElementById("garantie2").value);
+    const ptzOuvert = document.getElementById("ptzDetails").open;
+    const specialOuvert = document.getElementById("specialDetails").open;
+    const ptz = ptzOuvert ? (parseFloat(document.getElementById("ptzMontant").value) || 0) : 0;
+    const specialMontant = specialOuvert ? (parseFloat(document.getElementById("specialMontant").value) || 0) : 0;
+    const specialTaux = specialOuvert ? (parseFloat(document.getElementById("specialTaux").value) || 0) / 100 : 0;
 
     const n = annees * 12;
     const tauxMensuel = tauxAnnuel / 12;
+    const tauxMensuelSpecial = specialTaux / 12;
 
     const fraisNotaire = prixBien * tauxNotaire;
     const fraisFixes = dossier + garantie;
-    const capitalEmprunte = prixBien + fraisNotaire + fraisFixes - apport;
+    const capitalTotal = prixBien + fraisNotaire + fraisFixes - apport;
 
-    const mensualiteCredit = capitalEmprunte * tauxMensuel / (1 - Math.pow(1 + tauxMensuel, -n));
-    const totalVerse = mensualiteCredit * n;
-    const interets = totalVerse - capitalEmprunte;
+    const principal = Math.max(0, capitalTotal - ptz - specialMontant);
+
+    const mensPrincipal = mensualiteAnnuite(principal, tauxMensuel, n);
+    const mensSpecial = mensualiteAnnuite(specialMontant, tauxMensuelSpecial, n);
+    const mensPTZ = mensualiteAnnuite(ptz, 0, n);
+
+    const mensualiteCredit = mensPrincipal + mensSpecial + mensPTZ;
     const mensualiteTotale = mensualiteCredit + assurance;
+
+    const interetsPrincipal = mensPrincipal * n - principal;
+    const interetsSpecial = mensSpecial * n - specialMontant;
+    const interets = interetsPrincipal + interetsSpecial;
+
+    let repartition = `📊 Répartition du capital : ${format(principal)} € au taux principal`;
+    if (specialMontant > 0) repartition += ` · ${format(specialMontant)} € à taux spécial`;
+    if (ptz > 0) repartition += ` · ${format(ptz)} € en PTZ`;
 
     document.getElementById("resultats2").style.display = "block";
     document.getElementById("notaire2").innerHTML = `🏛️ Frais de notaire estimés : <strong>${format(fraisNotaire)} €</strong>`;
-    document.getElementById("capitalEmprunte").innerHTML = `💰 Capital à emprunter : <strong>${format(capitalEmprunte)} €</strong>`;
+    document.getElementById("capitalEmprunte").innerHTML = `💰 Capital total à financer : <strong>${format(capitalTotal)} €</strong>`;
+    document.getElementById("repartitionPrets").innerHTML = repartition;
     document.getElementById("interets2").innerHTML = `📈 Montant total des intérêts : <strong>${format(interets)} €</strong>`;
     document.getElementById("mensualiteSansAssurance").innerHTML = `💳 Mensualité de crédit, hors assurance : <strong>${format(mensualiteCredit)} €</strong>`;
     document.getElementById("mensualiteTotale").innerHTML = `📆 Mensualité totale (assurance incluse) : ${format(mensualiteTotale)} €`;
